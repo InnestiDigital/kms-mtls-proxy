@@ -1,0 +1,90 @@
+{
+  "_comment": [
+    "Example of adding mtls-proxy as a sidecar to an existing ECS task.",
+    "Containers in a task share a network namespace under awsvpc, so the",
+    "application reaches the proxy on 127.0.0.1:8443 and nothing crosses the",
+    "network in cleartext.",
+    "",
+    "One key and one certificate per application per third party: that is what",
+    "keeps the credential scoped, and it is why this is a sidecar rather than a",
+    "shared service."
+  ],
+  "family": "your-application",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "taskRoleArn": "arn:aws:iam::<account>:role/your-application-task",
+  "executionRoleArn": "arn:aws:iam::<account>:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "app",
+      "image": "<registry>/your-application:<tag>",
+      "essential": true,
+      "environment": [
+        {
+          "name": "THIRD_PARTY_BASE_URL",
+          "value": "http://127.0.0.1:8443"
+        }
+      ],
+      "dependsOn": [
+        {
+          "containerName": "mtls-proxy",
+          "condition": "HEALTHY"
+        }
+      ]
+    },
+    {
+      "name": "mtls-proxy",
+      "image": "<registry>/mtls-proxy:<tag>",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8443,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "UPSTREAM_HOST",
+          "value": "api.third-party.example"
+        },
+        {
+          "name": "KMS_KEY_ID",
+          "value": "arn:aws:kms:<region>:<account>:key/<key-id>"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "<region>"
+        }
+      ],
+      "_comment_secrets": [
+        "The certificate is public material, but it is delivered as a secret",
+        "so that rotating it does not require rebuilding the image. The",
+        "private key is in KMS and is never delivered anywhere."
+      ],
+      "secrets": [
+        {
+          "name": "CLIENT_CERT_PEM_CONTENTS",
+          "valueFrom": "arn:aws:secretsmanager:<region>:<account>:secret:your-application/mtls-client-cert"
+        }
+      ],
+      "healthCheck": {
+        "command": ["CMD", "/usr/local/bin/mtls-proxy", "healthcheck"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 10
+      },
+      "stopTimeout": 30,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/your-application",
+          "awslogs-region": "<region>",
+          "awslogs-stream-prefix": "mtls-proxy"
+        }
+      }
+    }
+  ]
+}

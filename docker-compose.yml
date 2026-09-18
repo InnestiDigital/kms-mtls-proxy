@@ -1,0 +1,23 @@
+# Local development only. Real deployments add this image as a sidecar to the
+# consuming application's ECS task; see deploy/ecs-task-definition.example.json.
+# The client certificate is passed inline via CLIENT_CERT_PEM_CONTENTS; the
+# Makefile exports it from certs/client-cert.pem.
+services:
+  mtls_proxy:
+    build:
+      context: .
+    environment:
+      HOME: /home/proxy
+      UPSTREAM_HOST: ${UPSTREAM_HOST:-}
+      KMS_KEY_ID: ${KMS_KEY_ID:-}
+      CLIENT_CERT_PEM_CONTENTS: ${CLIENT_CERT_PEM_CONTENTS:-}
+      UPSTREAM_CA_PEM: ${UPSTREAM_CA_PEM:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_PROFILE: ${AWS_PROFILE:-}
+      CSR_COMMON_NAME: ${CSR_COMMON_NAME:-}
+      CSR_ORG: ${CSR_ORG:-}
+      CSR_COUNTRY: ${CSR_COUNTRY:-}
+    ports:
+      - "${LISTEN_PORT:-8443}:8443"
+    volumes:
+      - ${HOME}/.aws:/home/proxy/.aws:ro

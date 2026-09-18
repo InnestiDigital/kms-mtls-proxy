@@ -1,0 +1,6 @@
+# Runtime mount point for the client certificate, empty in git by design.
+# Nothing here is ever committed: the certificate is delivered at deploy time
+# (Secrets Manager in ECS, a bind mount locally) and the private key lives in
+# KMS and is never delivered anywhere.
+*
+!.gitignore

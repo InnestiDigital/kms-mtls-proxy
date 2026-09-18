@@ -1,0 +1,27 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to a commit SHA rather than a tag: a tag can be
+      # moved, and this workflow runs with access to the repository.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # GORUN empty runs the Makefile's go directly instead of through the
+      # container it uses locally, since the runner already has a toolchain.
+      # The suite needs no credentials and no network.
+      - run: make vet GORUN=
+      - run: make test GORUN=
